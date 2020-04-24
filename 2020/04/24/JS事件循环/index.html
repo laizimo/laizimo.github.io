@@ -79,17 +79,23 @@
 
 
 
-<meta name="description" content="涉及到多个异步事件执行的时候，大家会不会产生思考！执行顺序，还和原来一样么？还是有什么固定的规则，让我们去判断！今天我们就来了解一下Event Loop的概念。">
+<meta name="description" content="涉及到多个异步事件执行的时候，大家会不会产生思考！执行顺序，还和原来一样么？还是有什么固定的规则，让我们去判断！今天我们就来了解一下Event Loop的概念。  在聊起这个概念之前，我们先来听一段JavaScript语言的自述。 浏览器为什么选择了我众所周知，JavaScript是一门单线程的语言。为什么浏览器会去选择它呢！原因就是——简单。在浏览器端，复杂的UI环境会限制多线程语言的开发。例">
 <meta property="og:type" content="article">
 <meta property="og:title" content="JS事件循环.md">
 <meta property="og:url" content="http://yoursite.com/2020/04/24/JS%E4%BA%8B%E4%BB%B6%E5%BE%AA%E7%8E%AF/index.html">
 <meta property="og:site_name" content="MW博客">
-<meta property="og:description" content="涉及到多个异步事件执行的时候，大家会不会产生思考！执行顺序，还和原来一样么？还是有什么固定的规则，让我们去判断！今天我们就来了解一下Event Loop的概念。">
+<meta property="og:description" content="涉及到多个异步事件执行的时候，大家会不会产生思考！执行顺序，还和原来一样么？还是有什么固定的规则，让我们去判断！今天我们就来了解一下Event Loop的概念。  在聊起这个概念之前，我们先来听一段JavaScript语言的自述。 浏览器为什么选择了我众所周知，JavaScript是一门单线程的语言。为什么浏览器会去选择它呢！原因就是——简单。在浏览器端，复杂的UI环境会限制多线程语言的开发。例">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de2b49f50?w=348&h=368&f=png&s=12916">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de2d691d1?w=1180&h=246&f=png&s=27366">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de39fa8f3?w=499&h=80&f=png&s=6716">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de55909ae?w=1181&h=263&f=png&s=30048">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aaba294b1919b?w=2932&h=2120&f=png&s=1004994">
 <meta property="article:published_time" content="2020-04-24T02:11:21.000Z">
-<meta property="article:modified_time" content="2020-04-24T02:19:51.149Z">
+<meta property="article:modified_time" content="2020-04-24T06:21:58.089Z">
 <meta property="article:author" content="莫问">
 <meta property="article:tag" content="JavaScript">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de2b49f50?w=348&h=368&f=png&s=12916">
 
 
 
@@ -350,6 +356,65 @@
         <blockquote>
 <p>涉及到多个异步事件执行的时候，大家会不会产生思考！执行顺序，还和原来一样么？还是有什么固定的规则，让我们去判断！今天我们就来了解一下Event Loop的概念。</p>
 </blockquote>
+<p>在聊起这个概念之前，我们先来听一段JavaScript语言的自述。</p>
+<h3 id="浏览器为什么选择了我"><a href="#浏览器为什么选择了我" class="headerlink" title="浏览器为什么选择了我"></a>浏览器为什么选择了我</h3><p>众所周知，JavaScript是一门单线程的语言。为什么浏览器会去选择它呢！原因就是——<strong>简单</strong>。在浏览器端，复杂的UI环境会限制多线程语言的开发。例如：</p>
+<p>一个线程在操作一个DOM元素的时候，另一个线程需要去删除这个DOM元素。这种情况下，我们就需要进行状态的同步。可怕的是，浏览器往往不止去操作一个DOM元素！所以，为了避免开发中处理这种复杂的情况，单线程语言不失为一种好的解决方案。</p>
+<p>但是，单线程也会有它的缺陷——<strong>同步阻塞</strong>。如图所示：</p>
+<p><img src="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de2b49f50?w=348&h=368&f=png&s=12916" alt="image"></p>
+<p>CPU在进行一个I/O操作的时候，需要去请求数据，期间需要等待数据返回之后，才能够继续执行下面的任务。这个等待期，就阻塞了其他任务的执行。因此，JavaScript在执行过程中，将任务分成了<strong>同步任务</strong>和<strong>异步任务</strong>，来解决类似的情况。</p>
+<h3 id="同步-异步"><a href="#同步-异步" class="headerlink" title="同步/异步"></a>同步/异步</h3><p>每个线程都有一个执行栈，会根据<strong>先进后出</strong>的顺序来执行线程中的任务，所有的同步任务，都会被放到这个执行栈中，我们可以来看一段代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun1</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="string">'hello hip-hop'</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun2</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="keyword">return</span> fun1();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun3</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(fun2());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fun3();   <span class="comment">//'hello hip-hop'</span></span><br></pre></td></tr></table></figure>
+
+<p>它的执行顺序如下：</p>
+<p><img src="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de2d691d1?w=1180&h=246&f=png&s=27366" alt="image"></p>
+<p>或者我们可以通过浏览器后台的报错来看整个执行顺序，如下：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun1</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'hello hip-hop'</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun2</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="keyword">return</span> fun1();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fun3</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(fun2());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fun3();</span><br></pre></td></tr></table></figure>
+
+<p>浏览器后台的报错提示，如图：</p>
+<p><img src="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de39fa8f3?w=499&h=80&f=png&s=6716" alt="image"></p>
+<p>在此基础上，我们如果加入异步任务，会发生什么样的情况呢，如下：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">console</span>.log(<span class="string">'first'</span>);</span><br><span class="line">setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'second'</span>);</span><br><span class="line">&#125;, <span class="number">500</span>);</span><br><span class="line"><span class="built_in">console</span>.log(<span class="string">'three'</span>);</span><br></pre></td></tr></table></figure>
+
+<p>我们依然通过画图的形式，来直观地感受一下执行栈的顺序，如图：</p>
+<p><img src="https://user-gold-cdn.xitu.io/2020/4/24/171aa12de55909ae?w=1181&h=263&f=png&s=30048" alt="image"></p>
+<p>从图中，我们可以清晰地看到setTimeout执行完成之后，就出栈了！那么，后来的console.log(‘second’)是如何入栈的呢？</p>
+<p>其实，在主线程之外，还存在一个任务队列。异步任务，都会被放到任务队列中。只有当指定事件触发之后，异步任务才会被放到主线程中执行。</p>
+<p>任务队列中，是一个事件队列。拿setTimeout举例来说：</p>
+<ul>
+<li>当主线程执行到setTimeout的时候，会创建一个定时器；</li>
+<li>一旦定时器的到达时间，就会将回调函数放到任务队列中；</li>
+<li>当主线程任务执行完成之后，就会去循环任务队列，执行回调函数；</li>
+</ul>
+<h3 id="事件循环"><a href="#事件循环" class="headerlink" title="事件循环"></a>事件循环</h3><p>上述流程，规范为一张图如下：</p>
+<p><img src="https://user-gold-cdn.xitu.io/2020/4/24/171aaba294b1919b?w=2932&h=2120&f=png&s=1004994" alt=""></p>
+<p>这里有个循环，是一个死循环，无论哪种情况都是闭环，这个就是<strong>事件循环</strong>。事件循环不断地在检测队列是否存在已触发的任务，如果有的话，就放到主线程中执行（注：这个过程往往在主线程执行完之后进行）。</p>
+<p>这幅图里面，我们看到了有浏览器的点击事件、ajax请求、Promise等这里。但是不同之处在于，它们的任务性质存在不同。</p>
+<p>自从，ES6出现之后，Promise逐渐被开发者热议。这里我们来讨论一下它这方面的特殊性。</p>
+<p>首先，我们来看一段代码：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">1</span>);</span><br><span class="line">&#125;, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">Promise</span>.resolve().then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">2</span>);</span><br><span class="line">&#125;).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">3</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="built_in">console</span>.log(<span class="number">4</span>);      <span class="comment">// 4   2    3    1</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>你会不会有所疑问，为啥不是4 1 2 3的顺序呢？</p>
+</blockquote>
+<p>其实，这个执行顺序和任务队列有关系！任务队列中存在两种队列类型：<strong>宏任务</strong>和<strong>微任务</strong>。宏任务可以有多个队列，微任务只能有一个！同时，宏任务是<strong>一个一个出队的</strong>，而<strong>微任务是一队一队出队的</strong>。</p>
+<p>在执行事件循环的过程中：</p>
+<ul>
+<li>主线程会先遍历一遍微任务队列，然后将队列中的函数抽离出来执行。</li>
+<li>执行完成之后，再执行一个宏任务，在循环一遍微任务队列，再执行一个宏任务</li>
+<li>直至队列都循环完毕。</li>
+</ul>
+<p>了解清楚这个后，我们再回头看，心中亦如明镜。setTimeout是宏任务，Promise是微任务。具体分类如下：</p>
+<ul>
+<li>宏任务：setTimeout，setInterval，JavaScript（整段代码），I/O操作，UI渲染等</li>
+<li>微任务：Promise，process.nextTick(NodeJS)等</li>
+</ul>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>本文我们回顾了：</p>
+<ul>
+<li>JS的线程机制，同步和异步操作</li>
+<li>事件循环的过程</li>
+<li>任务队列的不同</li>
+</ul>
+<p>希望对于你来说有所收获，感谢阅读。</p>
 
       
     </div>
@@ -448,8 +513,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -532,6 +606,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#浏览器为什么选择了我"><span class="nav-number">1.</span> <span class="nav-text">浏览器为什么选择了我</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#同步-异步"><span class="nav-number">2.</span> <span class="nav-text">同步&#x2F;异步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#事件循环"><span class="nav-number">3.</span> <span class="nav-text">事件循环</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
